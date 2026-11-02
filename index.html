@@ -230,14 +230,18 @@ function updateCaret(animate){
   const c=currentChar();
   if(!c){return}
   caretEl.classList.remove("hidden");
-  caretEl.style.height=c.offsetHeight+"px";
-  caretEl.style.left=c.offsetLeft+"px";
-  caretEl.style.top=c.offsetTop+"px";
+  // координаты символа относительно родителя курсора (через rect: учитывает и скролл текста)
+  const r=c.getBoundingClientRect();
+  const pr=caretEl.offsetParent.getBoundingClientRect();
+  const tr=textEl.getBoundingClientRect();
+  caretEl.style.height=r.height+"px";
+  caretEl.style.left=(r.left-pr.left)+"px";
+  caretEl.style.top=(r.top-tr.top)+"px";
   // прокрутка строк
   const row=Math.floor(c.offsetTop/c.offsetHeight);
   const lineH=c.offsetHeight*1.0;
   const target=Math.max(0,(row-1)*c.offsetHeight);
-  textEl.scrollTop=target;
+  if(textEl.scrollTop!==target)textEl.scrollTop=target;
 }
 // ---------- Генерация ----------
 function newGame(){
