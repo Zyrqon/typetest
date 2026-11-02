@@ -233,10 +233,9 @@ function updateCaret(animate){
   // координаты символа относительно родителя курсора (через rect: учитывает и скролл текста)
   const r=c.getBoundingClientRect();
   const pr=caretEl.offsetParent.getBoundingClientRect();
-  const tr=textEl.getBoundingClientRect();
   caretEl.style.height=r.height+"px";
   caretEl.style.left=(r.left-pr.left)+"px";
-  caretEl.style.top=(r.top-tr.top)+"px";
+  caretEl.style.top=(r.top-pr.top)+"px";
   // прокрутка строк
   const row=Math.floor(c.offsetTop/c.offsetHeight);
   const lineH=c.offsetHeight*1.0;
