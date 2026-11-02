@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Быстрые пальцы — тренажёр печати (RU/EN)</title>
+<style>
+:root{
+  --bg:#0e1116; --bg2:#131822; --card:#171e2b; --line:#232d3f;
+  --fg:#e8edf5; --dim:#8b97ab; --dim2:#5c6a80;
+  --acc:#5ee0a0; --acc2:#4bc98b; --err:#ff6b6b; --errbg:rgba(255,107,107,.16);
+  --good:#5ee0a0; --warn:#ffd166;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 700px at 50% -10%,#1a2333 0%,var(--bg) 60%);
+  color:var(--fg);
+  font-family:"SF Pro Text",-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  display:flex;flex-direction:column;min-height:100vh;
+}
+a{color:var(--acc)}
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 28px;border-bottom:1px solid var(--line);
+}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:.2px}
+.logo .dot{width:11px;height:11px;border-radius:50%;background:var(--acc);box-shadow:0 0 12px var(--acc)}
+.logo small{color:var(--dim);font-weight:500;font-size:12px}
+main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 20px 40px;width:100%;max-width:1000px;margin:0 auto}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:26px}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--dim);
+  padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;
+  font-family:inherit;
+}
+.seg button:hover{color:var(--fg)}
+.seg button.on{background:#243045;color:var(--fg)}
+.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.statrow{
+  display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:30px;
+}
+.stat{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 22px;min-width:110px;text-align:center;
+}
+.stat .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .k{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.stat.hot .v{color:var(--acc)}
+#stage{width:100%;max-width:820px;position:relative}
+#timerbar{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:26px}
+#timerbar i{display:block;height:100%;width:100%;background:var(--acc);transition:width .2s linear}
+#timerbar.paused i{background:var(--warn)}
+#text{
+  font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+  font-size:21px;line-height:1.85;letter-spacing:.4px;
+  height:170px;overflow:hidden;position:relative;user-select:none;
+  color:var(--dim2);outline:none;
+  border-radius:14px;
+}
+.w{display:inline-block;margin-right:.62em;white-space:nowrap}
+.w.done{margin-right:.62em}
+.ch{position:relative;transition:color .06s}
+.ch.ok{color:var(--fg)}
+.ch.bad{color:var(--err);background:var(--errbg);border-radius:3px}
+.ch.extra{color:var(--warn)}
+#caret{
+  position:absolute;width:2.5px;background:var(--acc);border-radius:2px;
+  transition:left .07s,top .12s,height .12s;
+  box-shadow:0 0 8px var(--acc);pointer-events:none;
+}
+.caret-blink{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#ghost{
+  position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  color:var(--dim2);font-size:16px;text-align:center;pointer-events:none;
+}
+kbd{
+  background:#1d2534;border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:6px;padding:1px 7px;font-size:12px;font-family:inherit;color:var(--fg);
+}
+#overlay{
+  position:absolute;inset:-10px;background:rgba(14,17,22,.75);backdrop-filter:blur(4px);
+  border-radius:16px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;
+  text-align:center;z-index:5;
+}
+#overlay.hidden{display:none}
+#overlay .big{font-size:15px;color:var(--fg);font-weight:600}
+#overlay .small{font-size:13px;color:var(--dim)}
+ #restart,#r-restart{
+  margin-top:26px;background:var(--card);border:1px solid var(--line);color:var(--dim);
+  padding:9px 20px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:.15s;
+}
+ #restart:hover,#r-restart:hover{color:var(--fg);border-color:#33415c}
+#results{display:none;width:100%;max-width:640px;text-align:center}
+#results.show{display:block}
+#results h2{font-size:15px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;font-weight:600;margin-bottom:18px}
+.wpm-hero{font-size:76px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--acc)}
+.wpm-hero small{font-size:18px;color:var(--dim);font-weight:600;letter-spacing:1px}
+.resgrid{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0}
+#history{margin-top:34px;text-align:left}
+#history h3{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-weight:600}
+#hist-table{width:100%;border-collapse:collapse;font-size:14px}
+#hist-table td,#hist-table th{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+#hist-table th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
+.badge{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:11px;color:var(--dim)}
+@media(max-width:600px){
+  #text{font-size:17px;height:150px}
+  .wpm-hero{font-size:56px}
+  header{padding:14px 16px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="dot"></span>Быстрые пальцы <small>тренажёр печати</small></div>
+  <div class="badge" id="pb-badge">рекорд: —</div>
+</header>
+<main>
+  <div class="toolbar">
+    <div class="seg" id="langseg">
+      <button data-lang="ru" class="on">🇷🇺 Русский</button>
+      <button data-lang="en">🇬🇧 English</button>
+    </div>
+    <div class="seg" id="timeseg">
+      <button data-t="15">15 сек</button>
+      <button data-t="30" class="on">30 сек</button>
+      <button data-t="60">60 сек</button>
+      <button data-t="120">2 мин</button>
+    </div>
+    <div class="seg" id="modeseg">
+      <button data-m="words" class="on">Слова</button>
+      <button data-m="punct">Знаки</button>
+    </div>
+  </div>
+
+  <div class="statrow">
+    <div class="stat hot"><div class="v" id="s-wpm">0</div><div class="k">зн/5 в мин</div></div>
+    <div class="stat"><div class="v" id="s-acc">100%</div><div class="k">точность</div></div>
+    <div class="stat"><div class="v" id="s-time">30</div><div class="k">сек</div></div>
+  </div>
+
+  <div id="stage">
+    <div id="timerbar"><i></i></div>
+    <div id="text" tabindex="0"></div>
+    <div id="caret" class="caret-blink"></div>
+    <div id="overlay">
+      <div class="big">Нажми любую клавишу, чтобы начать</div>
+      <div class="small"><kbd>Tab</kbd> — заново · язык и время сверху</div>
+    </div>
+    <div id="restart" title="Перепройти">↻ Заново <kbd>Tab</kbd></div>
+  </div>
+
+  <div id="results">
+    <h2>Результат</h2>
+    <div class="wpm-hero"><span id="r-wpm">0</span> <small id="r-unit">зн/5·мин</small></div>
+    <div class="resgrid">
+      <div class="stat"><div class="v" id="r-acc">0%</div><div class="k">точность</div></div>
+      <div class="stat"><div class="v" id="r-chars">0</div><div class="k">символов</div></div>
+      <div class="stat"><div class="v" id="r-cons">0</div><div class="k">макс. серия</div></div>
+      <div class="stat"><div class="v" id="r-best">—</div><div class="k">рекорд</div></div>
+    </div>
+    <button id="r-restart">↻ Заново <kbd>Tab</kbd></button>
+    <div id="history">
+      <h3>История попыток</h3>
+      <table id="hist-table"><thead><tr><th>Когда</th><th>Язык</th><th>Режим</th><th>Скор</th><th>Точн.</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</main>
+<footer>Всё считается в браузере, ничего никуда не отправляется</footer>
+
+<script>
+"use strict";
+// ---------- Корпуса ----------
+const WORDS_RU = ("и в не на я быть он с что а по то она они мы как из у к за его от о для же бы вы так её мог этот только или ещё мне было был её весь изза кого чем при там со ну нет да но если уже или когда вот даже наш весь свой между более пока потому человек дело время жизнь работа дом день рука слово место год глаз вопрос сторона конец во глав голова нос нога друг книга школа урок компьютер экран стул стол окно дверь город улица дорога машина поезд лето зима осень весна утро вечер ночь еда вода хлеб молоко чай кофе яблоко музыка песня фильм игра спорт мяч бег прыжок ветер дождь снег дождь гром солнце луна звезда небо земля море река лес гора дерево цветок трава птица кошка собака лошадь корова волк лиса заяц медведь рыба бабочка мышка быстро медленно тихо громко тепло холодно свежий новый старый большой маленький высокий низкий длинный короткий красный синий зелёный жёлтый белый чёрный добрый весёлый сильный умный красивый чистый лёгкий трудный важный простой интересный").split(/\s+/);
+const WORDS_EN = ("the be to of and a in that have I it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us house water fire world hand life part child eye woman place week case point government company number group problem fact small large next early young important public bad same able hand school home room door window table chair floor wall street road city town village car bus train plane trip summer winter autumn spring morning evening night food bread milk tea coffee apple music song film game sport ball run jump wind rain snow storm sun moon star sky earth sea river forest mountain tree flower grass bird cat dog horse cow wolf fox rabbit bear fish butterfly mouse quick slow quiet loud warm cold fresh new old big small tall low long short red blue green yellow white black kind funny strong smart beautiful clean light hard easy important simple interesting").split(/\s+/);
+const PUNCT_RU = ".,!?;:-()«»…";
+const PUNCT_EN = ".,!?;:-()\"";
+function rnd(a){return a[Math.floor(Math.random()*a.length)]}
+function makeText(lang, punct, words){
+  const src = lang==="ru"?WORDS_RU:WORDS_EN;
+  const pu  = lang==="ru"?PUNCT_RU:PUNCT_EN;
+  const out=[];
+  for(let i=0;i<words;i++){
+    let w=rnd(src);
+    if(punct && Math.random()<0.22){
+      const p=rnd(pu);
+      if(p==="«")w=p+w+"»";
+      else if(p==="(")w=p+w+")";
+      else if(".,!?;:…".includes(p))w=w+p;
+      else if(p==="-")w=w+"-";
+      else w=p+w+p;
+    }
+    out.push(w);
+  }
+  return out;
+}
+// ---------- Состояние ----------
+let lang="ru", timeMode=30, mode="words";
+let words=[], chars=[], pos=0, started=false, done=false;
+let t0=0, timerId=null, keyBuf="", totalKeys=0, goodKeys=0, curStreak=0, maxStreak=0;
+const $=id=>document.getElementById(id);
+const textEl=$("text"), caretEl=$("caret"), overlayEl=$("overlay");
+let lineOffsets=[];
+// ---------- Рендер текста ----------
+function render(){
+  textEl.innerHTML="";
+  lineOffsets=[];
+  const frag=document.createDocumentFragment();
+  let prevWord=null;
+  words.forEach((w,i)=>{
+    const el=document.createElement("span");el.className="w";el.dataset.i=i;
+    w.split("").forEach((c,j)=>{
+      const s=document.createElement("span");s.className="ch";s.textContent=c;
+      el.appendChild(s);
+    });
+    const sp=document.createElement("span");sp.className="ch space";sp.textContent=" ";sp.dataset.w=i;
+    el.appendChild(sp);
+    frag.appendChild(el);prevWord=el;
+  });
+  textEl.appendChild(frag);
+  chars=[...textEl.querySelectorAll(".ch")];
+  updateCaret();
+}
+function currentChar(){return chars[Math.min(pos,chars.length-1)]}
+function updateCaret(animate){
+  const c=currentChar();
+  if(!c){return}
+  caretEl.classList.remove("hidden");
+  caretEl.style.height=c.offsetHeight+"px";
+  caretEl.style.left=c.offsetLeft+"px";
+  caretEl.style.top=c.offsetTop+"px";
+  // прокрутка строк
+  const row=Math.floor(c.offsetTop/c.offsetHeight);
+  const lineH=c.offsetHeight*1.0;
+  const target=Math.max(0,(row-1)*c.offsetHeight);
+  textEl.scrollTop=target;
+}
+// ---------- Генерация ----------
+function newGame(){
+  words=makeText(lang, mode==="punct", Math.max(80,timeMode*3.2));
+  render();
+  pos=0;started=false;done=false;keyBuf="";totalKeys=0;goodKeys=0;curStreak=0;maxStreak=0;
+  $("s-wpm").textContent="0";$("s-acc").textContent="100%";$("s-time").textContent=timeMode;
+  const bar=$("timerbar");bar.classList.remove("paused");bar.querySelector("i").style.width="100%";
+  $("stage").style.display="";
+  overlayEl.classList.remove("hidden");
+  $("results").classList.remove("show");
+  clearInterval(timerId);timerId=null;
+}
+// ---------- Таймер ----------
+function startTimer(){
+  t0=performance.now();
+  timerId=setInterval(()=>{
+    const el=(performance.now()-t0)/1000;
+    const left=Math.max(0,timeMode-el);
+    $("s-time").textContent=Math.ceil(left);
+    $("timerbar").querySelector("i").style.width=(left/timeMode*100)+"%";
+    if(el>=timeMode)finish();
+  },100);
+}
+// ---------- Подсчёт ----------
+function liveStats(){
+  const el=Math.min(timeMode,(performance.now()-t0)/1000)||0.01;
+  const wpm=pos/5/(el/60);
+  $("s-wpm").textContent=Math.round(wpm);
+  const acc=totalKeys?Math.max(0,Math.round(goodKeys/totalKeys*100)):100;
+  $("s-acc").textContent=acc+"%";
+}
+// ---------- Ввод ----------
+function handleKey(ch){
+  if(done)return;
+  if(!started){started=true;overlayEl.classList.add("hidden");startTimer()}
+  totalKeys++;
+  const c=chars[pos];
+  if(!c){return}
+  const expect=c.textContent;
+  if(expect===" "){
+    if(ch===" "){
+      goodKeys++;curStreak++;
+      c.classList.remove("bad");c.classList.add("ok");
+      pos++;maxStreak=Math.max(maxStreak,curStreak);
+      updateCaret();
+    }else{
+      c.classList.add("bad");c.classList.remove("ok");curStreak=0;pos++;
+    }
+  }else{
+    if(ch===expect){
+      goodKeys++;curStreak++;
+      c.classList.remove("bad");c.classList.add("ok");
+      pos++;maxStreak=Math.max(maxStreak,curStreak);
+    }else{
+      c.classList.add("bad");c.classList.remove("ok");curStreak=0;pos++;
+    }
+  }
+  updateCaret();liveStats();
+}
+function handleBackspace(){
+  if(done||!started||pos===0)return;
+  pos--;
+  const c=chars[pos];
+  if(c){c.classList.remove("bad","ok")}
+  updateCaret();liveStats();
+}
+// ---------- Финиш ----------
+function finish(){
+  done=true;clearInterval(timerId);timerId=null;
+  const el=(performance.now()-t0)/1000;
+  const wpm=Math.round(pos/5/(Math.max(el,1)/60));
+  const acc=totalKeys?Math.max(0,Math.round(goodKeys/totalKeys*100)):100;
+  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode;
+  let pb=+(localStorage.getItem(key)||0);
+  const isPB=wpm>pb;
+  if(isPB){pb=wpm;localStorage.setItem(key,pb)}
+  $("r-wpm").textContent=wpm;
+  $("r-unit").textContent=lang==="ru"?"зн/5 · мин":"wpm";
+  $("r-acc").textContent=acc+"%";
+  $("r-chars").textContent=pos;
+  $("r-cons").textContent=maxStreak;
+  $("r-best").textContent=pb+(isPB?" 🏆":"");
+  $("results").classList.add("show");
+  $("stage").style.display="none";
+  saveHistory({when:Date.now(),lang,mode,t:timeMode,wpm,acc});
+  renderHistory();
+}
+function saveHistory(e){
+  try{
+    const arr=JSON.parse(localStorage.getItem("typetest-hist")||"[]");
+    arr.unshift(e);while(arr.length>25)arr.pop();
+    localStorage.setItem("typetest-hist",JSON.stringify(arr));
+  }catch(_){}
+}
+function renderHistory(){
+  let arr=[];try{arr=JSON.parse(localStorage.getItem("typetest-hist")||"[]")}catch(_){}
+  const tb=$("hist-table").querySelector("tbody");tb.innerHTML="";
+  arr.slice(0,10).forEach(e=>{
+    const tr=document.createElement("tr");
+    const d=new Date(e.when);
+    tr.innerHTML=`<td>${d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"})} ${d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</td>
+    <td>${e.lang==="ru"?"рус":"англ"}</td><td>${e.mode==="punct"?"знаки":"слова"} · ${e.t}с</td>
+    <td><b>${e.wpm}</b></td><td>${e.acc}%</td>`;
+    tb.appendChild(tr);
+  });
+  if(!arr.length)tb.innerHTML='<tr><td colspan="5" style="color:var(--dim2)">Пока пусто — сыграй первую попытку</td></tr>';
+}
+function updatePB(){
+  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode;
+  const pb=+(localStorage.getItem(key)||0);
+  $("pb-badge").textContent="рекорд: "+(pb||"—");
+}
+// ---------- UI ----------
+document.querySelectorAll("#langseg button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#langseg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");lang=b.dataset.lang;newGame();updatePB();
+});
+document.querySelectorAll("#timeseg button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#timeseg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");timeMode=+b.dataset.t;newGame();updatePB();
+});
+document.querySelectorAll("#modeseg button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#modeseg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");mode=b.dataset.m;newGame();updatePB();
+});
+$("r-restart").onclick=$("restart").onclick=()=>{newGame();updatePB()};
+window.addEventListener("keydown",e=>{
+  const k=e.key;
+  if(k==="Tab"){e.preventDefault();newGame();updatePB();return}
+  if(k==="Shift"||k==="Control"||k==="Alt"||k==="Meta"||k==="CapsLock"||k.startsWith("Arrow")||k==="Escape")return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(k==="Backspace"){e.preventDefault();handleBackspace();return}
+  if(k.length===1){e.preventDefault();handleKey(k)}
+});
+window.addEventListener("resize",()=>{if(!done)updateCaret(false)});
+// старт
+newGame();updatePB();renderHistory();
+</script>
+</body>
+</html>
