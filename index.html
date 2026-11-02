@@ -112,6 +112,16 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
   .wpm-hero{font-size:56px}
   header{padding:14px 16px}
 }
+#custompanel{max-width:820px;width:100%;margin:0 auto 18px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card);display:flex;gap:10px;align-items:stretch}
+#custompanel textarea{flex:1;min-height:84px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--fg);padding:10px 12px;font:inherit;font-size:15px;resize:vertical}
+#custompanel textarea:focus{outline:1px solid var(--acc);border-color:var(--acc)}
+#custompanel button{appearance:none;border:0;background:var(--acc);color:#0c1712;font-weight:700;padding:0 18px;border-radius:10px;cursor:pointer}
+#custompanel button:hover{background:var(--acc2)}
+#custompanel.hidden{display:none}
+#spark{margin:22px auto 0;max-width:640px;color:var(--dim2);font-size:13px}
+#spark svg{width:100%;height:56px;display:block;margin-bottom:4px}
+@keyframes tshake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.shake{animation:tshake .2s}
 </style>
 </head>
 <body>
@@ -134,6 +144,11 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
     <div class="seg" id="modeseg">
       <button data-m="words" class="on">Слова</button>
       <button data-m="punct">Знаки</button>
+      <button data-m="custom">Свой текст</button>
+    </div>
+    <div class="seg" id="extras">
+      <button id="btn-hard" title="Backspace отключён">Хардкор</button>
+      <button id="btn-sound" title="Звук клавиш">Звук</button>
     </div>
   </div>
 
@@ -141,6 +156,11 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
     <div class="stat hot"><div class="v" id="s-wpm">0</div><div class="k">зн/5 в мин</div></div>
     <div class="stat"><div class="v" id="s-acc">100%</div><div class="k">точность</div></div>
     <div class="stat"><div class="v" id="s-time">30</div><div class="k">сек</div></div>
+  </div>
+
+  <div id="custompanel" class="hidden">
+    <textarea id="customtext" placeholder="Вставь свой текст, который будешь набирать..."></textarea>
+    <button id="customstart">Начать</button>
   </div>
 
   <div id="stage">
@@ -164,6 +184,7 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
       <div class="stat"><div class="v" id="r-best">—</div><div class="k">рекорд</div></div>
     </div>
     <button id="r-restart">↻ Заново <kbd>Tab</kbd></button>
+    <div id="spark"></div>
     <div id="history">
       <h3>История попыток</h3>
       <table id="hist-table"><thead><tr><th>Когда</th><th>Язык</th><th>Режим</th><th>Скор</th><th>Точн.</th></tr></thead><tbody></tbody></table>
@@ -200,6 +221,8 @@ function makeText(lang, punct, words){
 }
 // ---------- Состояние ----------
 let lang="ru", timeMode=30, mode="words";
+let hardcore=localStorage.getItem("typetest-hard")==="1";
+let soundOn=localStorage.getItem("typetest-sound")!=="0";
 let words=[], chars=[], pos=0, started=false, done=false;
 let t0=0, timerId=null, keyBuf="", totalKeys=0, goodKeys=0, curStreak=0, maxStreak=0;
 const $=id=>document.getElementById(id);
@@ -244,8 +267,16 @@ function updateCaret(animate){
 }
 // ---------- Генерация ----------
 function newGame(){
-  words=makeText(lang, mode==="punct", Math.max(80,timeMode*3.2));
+  if(mode==="custom"){
+    const t=($("customtext").value||"").replace(/\s+/g," ").trim();
+    words=t?t.split(" "):makeText(lang,false,Math.max(80,timeMode*3.2));
+  }else{
+    words=makeText(lang, mode==="punct", Math.max(80,timeMode*3.2));
+  }
   render();
+  const cp=$("custompanel");
+  if(mode==="custom"){cp.classList.remove("hidden");overlayEl.querySelector(".big").textContent="Вставь текст и нажми «Начать»";$("stage").style.opacity="0.35"}
+  else{cp.classList.add("hidden");overlayEl.querySelector(".big").textContent="Нажми любую клавишу, чтобы начать";$("stage").style.opacity=""}
   pos=0;started=false;done=false;keyBuf="";totalKeys=0;goodKeys=0;curStreak=0;maxStreak=0;
   $("s-wpm").textContent="0";$("s-acc").textContent="100%";$("s-time").textContent=timeMode;
   const bar=$("timerbar");bar.classList.remove("paused");bar.querySelector("i").style.width="100%";
@@ -273,6 +304,23 @@ function liveStats(){
   const acc=totalKeys?Math.max(0,Math.round(goodKeys/totalKeys*100)):100;
   $("s-acc").textContent=acc+"%";
 }
+// ---------- Звук ----------
+let actx=null;
+function blip(ok){
+  if(!soundOn)return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended")actx.resume();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type="square";o.frequency.value=ok?880:196;
+    g.gain.value=ok?0.03:0.07;
+    o.connect(g);g.connect(actx.destination);
+    o.start();o.stop(actx.currentTime+(ok?0.035:0.09));
+  }catch(_){}
+}
+function flashHard(){
+  const st=$("stage");st.classList.remove("shake");void st.offsetWidth;st.classList.add("shake");
+}
 // ---------- Ввод ----------
 function handleKey(ch){
   if(done)return;
@@ -281,6 +329,7 @@ function handleKey(ch){
   const c=chars[pos];
   if(!c){return}
   const expect=c.textContent;
+  blip(ch===expect);
   if(expect===" "){
     if(ch===" "){
       goodKeys++;curStreak++;
@@ -303,6 +352,7 @@ function handleKey(ch){
 }
 function handleBackspace(){
   if(done||!started||pos===0)return;
+  if(hardcore){flashHard();return}
   pos--;
   const c=chars[pos];
   if(c){c.classList.remove("bad","ok")}
@@ -314,7 +364,7 @@ function finish(){
   const el=(performance.now()-t0)/1000;
   const wpm=Math.round(pos/5/(Math.max(el,1)/60));
   const acc=totalKeys?Math.max(0,Math.round(goodKeys/totalKeys*100)):100;
-  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode;
+  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode+(hardcore?"-h":"-n");
   let pb=+(localStorage.getItem(key)||0);
   const isPB=wpm>pb;
   if(isPB){pb=wpm;localStorage.setItem(key,pb)}
@@ -326,7 +376,7 @@ function finish(){
   $("r-best").textContent=pb+(isPB?" 🏆":"");
   $("results").classList.add("show");
   $("stage").style.display="none";
-  saveHistory({when:Date.now(),lang,mode,t:timeMode,wpm,acc});
+  saveHistory({when:Date.now(),lang,mode,t:timeMode,wpm,acc,h:hardcore?1:0});
   renderHistory();
 }
 function saveHistory(e){
@@ -343,14 +393,26 @@ function renderHistory(){
     const tr=document.createElement("tr");
     const d=new Date(e.when);
     tr.innerHTML=`<td>${d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"})} ${d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</td>
-    <td>${e.lang==="ru"?"рус":"англ"}</td><td>${e.mode==="punct"?"знаки":"слова"} · ${e.t}с</td>
+    <td>${e.lang==="ru"?"рус":"англ"}</td><td>${e.mode==="punct"?"знаки":(e.mode==="custom"?"свой":"слова")}${e.h?" ·х":""} · ${e.t}с</td>
     <td><b>${e.wpm}</b></td><td>${e.acc}%</td>`;
     tb.appendChild(tr);
   });
   if(!arr.length)tb.innerHTML='<tr><td colspan="5" style="color:var(--dim2)">Пока пусто — сыграй первую попытку</td></tr>';
+  drawSpark(arr);
+}
+function drawSpark(arr){
+  const el=$("spark");
+  if(!arr||!arr.length){el.innerHTML="";return}
+  const pts=arr.slice(0,12).reverse().map(e=>e.wpm);
+  const w=640,h=56,n=pts.length;
+  const mx=Math.max(...pts,1),mn=Math.min(...pts,0);
+  const x=i=>n===1?w/2:i/(n-1)*(w-8)+4;
+  const y=v=>h-6-(v-mn)/Math.max(mx-mn,1)*(h-12);
+  const path=pts.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join(" ");
+  el.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><path d="'+path+'" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>скорость последних попыток</span>';
 }
 function updatePB(){
-  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode;
+  const key="typetest-pb-"+lang+"-"+mode+"-"+timeMode+(hardcore?"-h":"-n");
   const pb=+(localStorage.getItem(key)||0);
   $("pb-badge").textContent="рекорд: "+(pb||"—");
 }
@@ -367,9 +429,20 @@ document.querySelectorAll("#modeseg button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeseg button").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");mode=b.dataset.m;newGame();updatePB();
 });
+$("btn-hard").onclick=()=>{hardcore=!hardcore;localStorage.setItem("typetest-hard",hardcore?"1":"0");$("btn-hard").classList.toggle("on",hardcore);newGame();updatePB()};
+$("btn-sound").onclick=()=>{soundOn=!soundOn;localStorage.setItem("typetest-sound",soundOn?"1":"0");$("btn-sound").classList.toggle("on",soundOn)};
+$("customstart").onclick=()=>{
+  const t=$("customtext").value.replace(/\s+/g," ").trim();
+  if(!t)return;
+  newGame();
+  $("stage").style.opacity="";
+  overlayEl.classList.add("hidden");
+};
 $("r-restart").onclick=$("restart").onclick=()=>{newGame();updatePB()};
 window.addEventListener("keydown",e=>{
   const k=e.key;
+  const tag=(e.target&&e.target.tagName)||"";
+  if(tag==="TEXTAREA"||tag==="INPUT")return;
   if(k==="Tab"){e.preventDefault();newGame();updatePB();return}
   if(k==="Shift"||k==="Control"||k==="Alt"||k==="Meta"||k==="CapsLock"||k.startsWith("Arrow")||k==="Escape")return;
   if(e.ctrlKey||e.metaKey||e.altKey)return;
@@ -378,6 +451,8 @@ window.addEventListener("keydown",e=>{
 });
 window.addEventListener("resize",()=>{if(!done)updateCaret(false)});
 // старт
+$("btn-hard").classList.toggle("on",hardcore);
+$("btn-sound").classList.toggle("on",soundOn);
 newGame();updatePB();renderHistory();
 </script>
 </body>
