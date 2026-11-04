@@ -171,6 +171,7 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
       <div class="big">Нажми любую клавишу, чтобы начать</div>
       <div class="small"><kbd>Tab</kbd> — заново · язык и время сверху</div>
     </div>
+    <div id="layouthint" style="display:none;margin-top:10px;color:var(--warn);font-size:13px;font-weight:600;text-align:center"></div>
     <div id="restart" title="Перепройти">↻ Заново <kbd>Tab</kbd></div>
   </div>
 
@@ -185,8 +186,10 @@ footer{padding:16px;text-align:center;color:var(--dim2);font-size:12px}
     </div>
     <button id="r-restart">↻ Заново <kbd>Tab</kbd></button>
     <div id="spark"></div>
+    <div id="stat-block" style="margin-top:18px;color:var(--dim);font-size:13px"></div>
     <div id="history">
       <h3>История попыток</h3>
+      <button id="reset-progress" style="background:none;border:0;color:var(--dim2);cursor:pointer;font:inherit;font-size:11px;text-decoration:underline;padding:0">Сбросить прогресс</button>
       <table id="hist-table"><thead><tr><th>Когда</th><th>Язык</th><th>Режим</th><th>Скор</th><th>Точн.</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
@@ -267,6 +270,7 @@ function updateCaret(animate){
 }
 // ---------- Генерация ----------
 function newGame(){
+  loadErrMap();layoutMiss=0;const lh=$("layouthint");lh.style.display="none";
   if(mode==="custom"){
     const t=($("customtext").value||"").replace(/\s+/g," ").trim();
     words=t?t.split(" "):makeText(lang,false,Math.max(80,timeMode*3.2));
@@ -337,7 +341,7 @@ function handleKey(ch){
       pos++;maxStreak=Math.max(maxStreak,curStreak);
       updateCaret();
     }else{
-      c.classList.add("bad");c.classList.remove("ok");curStreak=0;pos++;
+      c.classList.add("bad");c.classList.remove("ok");curStreak=0;noteError(expect,ch);pos++;
     }
   }else{
     if(ch===expect){
@@ -345,7 +349,7 @@ function handleKey(ch){
       c.classList.remove("bad");c.classList.add("ok");
       pos++;maxStreak=Math.max(maxStreak,curStreak);
     }else{
-      c.classList.add("bad");c.classList.remove("ok");curStreak=0;pos++;
+      c.classList.add("bad");c.classList.remove("ok");curStreak=0;noteError(expect,ch);pos++;
     }
   }
   updateCaret();liveStats();
@@ -357,6 +361,43 @@ function handleBackspace(){
   const c=chars[pos];
   if(c){c.classList.remove("bad","ok")}
   updateCaret();liveStats();
+}
+
+// ---------- Ошибки и раскладка ----------
+let errMap={},layoutMiss=0,errTotal=0;
+const LAYOUT_EN="qwertyuiop[]asdfghjkl;'zxcvbnm,.";
+const LAYOUT_RU="йцукенгшщзхъфывапролджэячсмитьбю";
+function noteError(expect,ch){
+  errTotal++;
+  errMap[expect]=(errMap[expect]||0)+1;
+  const e1=LAYOUT_EN.indexOf(expect.toLowerCase());
+  const e2=LAYOUT_RU.indexOf(expect.toLowerCase());
+  let wrong=false;
+  if(e1>=0&&ch.toLowerCase()===LAYOUT_RU[e1])wrong=true;
+  if(e2>=0&&ch.toLowerCase()===LAYOUT_EN[e2])wrong=true;
+  if(wrong){layoutMiss++;showLayoutHint()}
+}
+function showLayoutHint(){
+  const el=$("layouthint");
+  el.textContent="Похоже, включена не та раскладка — переключи (Ctrl+Shift / Cmd+Space)";
+  el.style.display="block";
+}
+function loadErrMap(){
+  try{errMap=JSON.parse(localStorage.getItem("typetest-err-"+lang)||"{}")||{}}catch(_){errMap={}}
+}
+function saveErrMap(){
+  try{localStorage.setItem("typetest-err-"+lang,JSON.stringify(errMap))}catch(_){}
+}
+function renderStats(){
+  const el=$("stat-block");
+  let arr=[];try{arr=JSON.parse(localStorage.getItem("typetest-hist")||"[]")}catch(_){}
+  if(!arr.length){el.innerHTML="";return}
+  const n=arr.length;
+  const avg=Math.round(arr.reduce((x,e)=>x+e.acc,0)/n);
+  const bw=Math.max(...arr.map(e=>e.wpm));
+  const top=Object.entries(errMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const errLine=top.length?" · чаще всего промах: "+top.map(([k,v])=>k+"×"+v).join(", "):"";
+  el.innerHTML="всего попыток: "+n+" · лучший скор: "+bw+" · ср. точность: "+avg+"%"+errLine;
 }
 // ---------- Финиш ----------
 function finish(){
@@ -376,8 +417,8 @@ function finish(){
   $("r-best").textContent=pb+(isPB?" 🏆":"");
   $("results").classList.add("show");
   $("stage").style.display="none";
-  saveHistory({when:Date.now(),lang,mode,t:timeMode,wpm,acc,h:hardcore?1:0});
-  renderHistory();
+  saveErrMap();saveHistory({when:Date.now(),lang,mode,t:timeMode,wpm,acc,h:hardcore?1:0});
+  renderHistory();renderStats();
 }
 function saveHistory(e){
   try{
@@ -450,6 +491,12 @@ window.addEventListener("keydown",e=>{
   if(k.length===1){e.preventDefault();handleKey(k)}
 });
 window.addEventListener("resize",()=>{if(!done)updateCaret(false)});
+
+$("reset-progress").onclick=()=>{
+  if(!confirm("Удалить всю статистику, рекорды и историю?"))return;
+  Object.keys(localStorage).filter(k=>k.startsWith("typetest-")&&k!=="typetest-hard"&&k!=="typetest-sound").forEach(k=>localStorage.removeItem(k));
+  errMap={};layoutMiss=0;updatePB();renderHistory();renderStats();
+};
 // старт
 $("btn-hard").classList.toggle("on",hardcore);
 $("btn-sound").classList.toggle("on",soundOn);
